@@ -1,0 +1,32 @@
+# Home server deployment. Copy to /opt/closet/ on LXC 200; secrets come from /opt/closet/.env.
+services:
+  libre-closet:
+    build:
+      context: ./src
+      dockerfile: docker/Dockerfile
+    image: libre-closet:current
+    restart: unless-stopped
+    environment:
+      AUTH_ENABLED: "true"
+      DISABLE_REGISTRATION: "false"   # set "true" once both accounts exist
+      PWA_ENABLED: "true"
+      DATA_PATH: /app/data
+      SITE_URL: https://closet.home.arpa
+      ACCESS_TOKEN_SECRET: ${CLOSET_JWT_SECRET}
+      PUBLIC_VAPID_KEY: ${CLOSET_VAPID_PUBLIC}
+      PRIVATE_VAPID_KEY: ${CLOSET_VAPID_PRIVATE}
+    volumes:
+      - /srv/closet/data:/app/data
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+volumes:
+  caddy_data:
