@@ -20,7 +20,9 @@ import { ConditionalAuthGuard } from '../auth/conditional-auth.guard';
 import { Payload } from '../auth/dto/payload.dto';
 import { User } from '../auth/user.decorator';
 import { WardrobeShareService } from './wardrobe-share.service';
+import { WardrobeService } from './wardrobe.service';
 import { SharePermission } from '../dal/entity/wardrobe-share.entity';
+import { I18n, I18nContext } from 'nestjs-i18n';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 @UseGuards(ConditionalAuthGuard)
@@ -28,7 +30,10 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 export class WardrobeShareController {
   private readonly logger = new Logger(WardrobeShareController.name);
 
-  constructor(private readonly shareService: WardrobeShareService) {}
+  constructor(
+    private readonly shareService: WardrobeShareService,
+    private readonly wardrobeService: WardrobeService,
+  ) {}
 
   @UseGuards(AuthGuard)
   @Get('manage')
@@ -37,23 +42,35 @@ export class WardrobeShareController {
     @User() payload: Payload,
     @Req() req: FastifyRequest,
     @Query('error') error: string | undefined,
+    @I18n() i18n: I18nContext,
   ) {
-    const [outbound, inbound, pending] = await Promise.all([
+    const [outbound, inbound, pending, wardrobes] = await Promise.all([
       this.shareService.getOutboundShares(payload.userId),
       this.shareService.getInboundShares(payload.userId),
       this.shareService.getPendingShares(payload.userId),
+      this.wardrobeService.listOwn(payload.userId),
     ]);
 
-    const mapShare = (s: any) => ({
-      id: s.id,
-      grantor: s.grantor?.unwrap?.() ?? s.grantor,
-      grantee: s.grantee?.unwrap?.() ?? s.grantee,
-      permission: s.permission,
-      inviteToken: s.inviteToken,
-      acceptedAt: s.acceptedAt,
-    });
+    const mapShare = (s: any) => {
+      const wardrobe = s.wardrobe?.unwrap?.() ?? s.wardrobe;
+      return {
+        id: s.id,
+        grantor: s.grantor?.unwrap?.() ?? s.grantor,
+        grantee: s.grantee?.unwrap?.() ?? s.grantee,
+        wardrobeId: wardrobe?.id,
+        wardrobeLabel: wardrobe ? WardrobeService.label(wardrobe, i18n) : '',
+        permission: s.permission,
+        inviteToken: s.inviteToken,
+        acceptedAt: s.acceptedAt,
+      };
+    };
 
     return {
+      wardrobes: wardrobes.map((w) => ({
+        id: w.id,
+        label: WardrobeService.label(w, i18n),
+        isDefault: w.isDefault,
+      })),
       outbound: outbound.map(mapShare),
       inbound: inbound.map(mapShare),
       pending: pending.map(mapShare),
@@ -66,12 +83,16 @@ export class WardrobeShareController {
   @Post('create-invite-link')
   async createInviteLink(
     @User() payload: Payload,
-    @Body() body: { permission: SharePermission },
+    @Body() body: { permission: SharePermission; wardrobeId?: string },
     @Req() req: FastifyRequest,
     @Res() reply: FastifyReply,
   ) {
+    const wardrobeId = body.wardrobeId
+      ? parseInt(body.wardrobeId, 10)
+      : (await this.wardrobeService.getDefault(payload.userId)).id;
     const share = await this.shareService.createInviteLink(
       payload.userId,
+      wardrobeId,
       body.permission || SharePermission.VIEW,
     );
     const inviteUrl = `${req.protocol}://${req.headers.host}/wardrobe-share/invite/${share.inviteToken}`;
@@ -102,6 +123,7 @@ export class WardrobeShareController {
   async viewInvite(
     @Param('token') token: string,
     @User() payload: Payload | undefined,
+    @I18n() i18n: I18nContext,
   ) {
     const share = await this.shareService.findInviteByToken(token);
     if (!share) {
@@ -118,6 +140,9 @@ export class WardrobeShareController {
         share.grantor.unwrap().firstName ||
         share.grantor.unwrap().email ||
         'A user',
+      wardrobeLabel: share.wardrobe
+        ? WardrobeService.label(share.wardrobe.unwrap(), i18n)
+        : '',
       token,
       isLoggedIn: !!payload,
     };

@@ -1,0 +1,100 @@
+{{>navbar}}
+
+<main class="p-4 pt-20 pb-24 max-w-2xl mx-auto">
+  <div class="flex items-center gap-3 mb-2">
+    <a href="/wardrobe" class="btn btn-ghost btn-sm btn-circle" aria-label="{{t 'lang.WARDROBE'}}">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      </svg>
+    </a>
+    <h1 class="text-2xl font-bold">{{t 'lang.WARDROBES'}}</h1>
+  </div>
+  <p class="text-sm text-base-content/60 mb-6">{{t 'lang.WARDROBES_DESC'}}</p>
+
+  {{#if error}}
+  <div class="alert alert-error mb-4">
+    <span>{{error}}</span>
+  </div>
+  {{/if}}
+
+  <div class="card bg-base-100 shadow-sm mb-6">
+    <div class="card-body">
+      <ul class="divide-y divide-base-200">
+        {{#each wardrobes}}
+        <li class="py-4 flex flex-col gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <a href="/wardrobe?wardrobeId={{this.id}}" class="font-medium link link-hover">{{this.label}}</a>
+            {{#if this.isDefault}}
+            <span class="badge badge-primary badge-sm">{{t 'lang.DEFAULT_WARDROBE'}}</span>
+            {{/if}}
+            {{#if this.isShared}}
+            <span class="badge badge-outline badge-sm">{{t 'lang.SHARED'}}</span>
+            {{else}}
+            <span class="badge badge-ghost badge-sm">{{t 'lang.PRIVATE'}}</span>
+            {{/if}}
+            <span class="text-xs text-base-content/60">{{this.garmentCount}} {{t 'lang.GARMENTS'}}</span>
+          </div>
+
+          <form method="post" action="/wardrobes/{{this.id}}/rename" class="flex gap-2">
+            <input
+              type="text"
+              name="name"
+              value="{{this.name}}"
+              placeholder="{{this.label}}"
+              maxlength="60"
+              required
+              aria-label="{{t 'lang.WARDROBE_NAME'}}"
+              class="input input-bordered input-sm flex-1"
+            />
+            <button type="submit" class="btn btn-ghost btn-sm">{{t 'lang.RENAME'}}</button>
+          </form>
+
+          <div class="flex flex-wrap items-center gap-2">
+            {{#unless this.isDefault}}
+            <form method="post" action="/wardrobes/{{this.id}}/default">
+              <button type="submit" class="btn btn-outline btn-xs">{{t 'lang.SET_DEFAULT_WARDROBE'}}</button>
+            </form>
+            {{/unless}}
+            {{#if this.canDelete}}
+            <form method="post" action="/wardrobes/{{this.id}}/delete"
+              hx-post="/wardrobes/{{this.id}}/delete"
+              hx-confirm="{{t 'lang.WARDROBE_DELETE_CONFIRM'}}"
+              hx-indicator="#loading">
+              <button type="submit" class="btn btn-ghost btn-xs text-error">{{t 'lang.DELETE'}}</button>
+            </form>
+            {{else}}
+            {{#unless this.isDefault}}
+            <span class="text-xs text-base-content/60">{{t 'lang.WARDROBE_DELETE_HINT'}}</span>
+            {{/unless}}
+            {{/if}}
+          </div>
+        </li>
+        {{/each}}
+      </ul>
+    </div>
+  </div>
+
+  <div class="card bg-base-100 shadow-sm mb-6">
+    <div class="card-body">
+      <h2 class="card-title text-lg">{{t 'lang.NEW_WARDROBE'}}</h2>
+      <form method="post" action="/wardrobes" class="flex gap-2">
+        <input
+          type="text"
+          name="name"
+          maxlength="60"
+          required
+          placeholder="{{t 'lang.WARDROBE_NAME'}}"
+          aria-label="{{t 'lang.WARDROBE_NAME'}}"
+          class="input input-bordered input-sm flex-1"
+        />
+        <button type="submit" class="btn btn-primary btn-sm">{{t 'lang.CREATE'}}</button>
+      </form>
+    </div>
+  </div>
+
+  {{#if authEnabled}}
+  <a href="/wardrobe-share/manage" class="link link-primary text-sm">{{t 'lang.WARDROBE_SHARING'}}</a>
+  {{/if}}
+</main>
+
+{{>dock}}

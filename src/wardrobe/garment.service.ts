@@ -1,4 +1,4 @@
-import { EntityRepository, FilterQuery } from '@mikro-orm/core';
+import { EntityRepository, FilterQuery, ref } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { randomUUID } from 'node:crypto';
 import {
@@ -10,14 +10,23 @@ import {
 import { I18nContext } from 'nestjs-i18n';
 import { Garment } from '../dal/entity/garment.entity';
 import { File } from '../dal/entity/file.entity';
-import { User } from '../dal/entity/user.entity';
+import { Wardrobe } from '../dal/entity/wardrobe.entity';
 import { FileService } from '../file/file-service.abstract';
 import { MultipartFile } from '@fastify/multipart';
 import { CreateGarmentDto } from './dto/create-garment.dto';
 import { UpdateGarmentDto } from './dto/update-garment.dto';
 import { SearchGarmentDto } from './dto/search-garment.dto';
 import { GarmentCategory } from './garment-category.enum';
-import { WardrobeShareService } from '../wardrobe-share/wardrobe-share.service';
+import {
+  canWrite,
+  WardrobePermission,
+  WardrobeService,
+} from '../wardrobe-share/wardrobe.service';
+
+export interface GarmentAccess {
+  garment: Garment;
+  permission: WardrobePermission;
+}
 
 const CANONICAL_SIZES = [
   'XX-Small',
@@ -39,11 +48,41 @@ export class GarmentService {
   constructor(
     @InjectRepository(Garment)
     private readonly garmentRepository: EntityRepository<Garment>,
-    @InjectRepository(User)
-    private readonly userRepository: EntityRepository<User>,
     private readonly fileService: FileService,
-    private readonly shareService: WardrobeShareService,
+    private readonly wardrobeService: WardrobeService,
   ) {}
+
+  private ownerWhere(userId?: number): FilterQuery<Garment> {
+    return userId != null ? { owner: { id: userId } } : { owner: null };
+  }
+
+  private inWardrobe(wardrobe: Wardrobe): FilterQuery<Garment> {
+    if (!wardrobe.isDefault) return { wardrobe: wardrobe.id };
+    // A garment that has lost its wardrobe falls back to its owner's default
+    return {
+      $or: [
+        { wardrobe: wardrobe.id },
+        {
+          wardrobe: null,
+          owner: wardrobe.owner ? { id: wardrobe.owner.id } : null,
+        },
+      ],
+    };
+  }
+
+  /** A wardrobe `userId` may add garments to; their default when none is given. */
+  private async writableWardrobe(
+    wardrobeId: number | undefined,
+    userId?: number,
+  ): Promise<Wardrobe> {
+    if (wardrobeId == null) return this.wardrobeService.getDefault(userId);
+    const { wardrobe, permission } = await this.wardrobeService.access(
+      wardrobeId,
+      userId,
+    );
+    if (!canWrite(permission)) throw new ForbiddenException();
+    return wardrobe;
+  }
 
   resolveCategoryLabel(value: string, i18n: I18nContext): string {
     const normalized = value.toLowerCase();
@@ -53,10 +92,14 @@ export class GarmentService {
     return value;
   }
 
+  /**
+   * Garments in one wardrobe (checking `userId` may see it), or, without a
+   * wardrobe, all of `userId`'s own garments across their wardrobes.
+   */
   async findAll(
     userId?: number,
     dto: SearchGarmentDto = {},
-    viewOwner?: number,
+    wardrobeId?: number,
   ): Promise<Garment[]> {
     const normalizedSize = this.normalizeSize(dto.size);
     const searchConditions: FilterQuery<Garment> = {
@@ -75,45 +118,51 @@ export class GarmentService {
         : {}),
     };
 
-    if (userId != null) {
-      if (viewOwner != null && viewOwner !== userId) {
-        return this.garmentRepository.find(
-          { owner: { id: viewOwner }, ...searchConditions },
-          { populate: ['photo'], orderBy: { id: 'DESC' } },
-        );
-      }
-      return this.garmentRepository.find(
-        { owner: { id: userId }, ...searchConditions },
-        { populate: ['photo'], orderBy: { id: 'DESC' } },
-      );
-    }
-    // AUTH_ENABLED=false: only return garments that belong to no user
+    const scope =
+      wardrobeId != null
+        ? this.inWardrobe(
+            (await this.wardrobeService.access(wardrobeId, userId)).wardrobe,
+          )
+        : // AUTH_ENABLED=false: ownerless garments only
+          this.ownerWhere(userId);
     return this.garmentRepository.find(
-      { owner: null, ...searchConditions },
+      { $and: [scope, searchConditions] },
       { populate: ['photo'], orderBy: { id: 'DESC' } },
     );
   }
 
-  async findOne(
-    id: number,
-    userId?: number,
-    viewOwner?: number,
-  ): Promise<Garment> {
+  /** A garment and what `userId` may do with it; throws when they may not see it. */
+  async access(id: number, userId?: number): Promise<GarmentAccess> {
     const garment = await this.garmentRepository.findOne(id, {
-      populate: ['photo', 'outfits'],
+      populate: ['photo', 'outfits', 'wardrobe'],
     });
     if (!garment) throw new NotFoundException('Garment not found');
-    if (userId != null) {
-      if (garment.owner?.id === userId) return garment;
-      if (viewOwner != null && garment.owner?.id === viewOwner) {
-        if (await this.shareService.canView(userId, viewOwner)) {
-          return garment;
-        }
-      }
-      throw new ForbiddenException();
-    } else {
-      if (garment.owner != null) throw new ForbiddenException();
+    const isOwner =
+      userId != null ? garment.owner?.id === userId : garment.owner == null;
+    if (isOwner) return { garment, permission: 'OWNER' };
+    if (userId != null && garment.wardrobe) {
+      const { permission } = await this.wardrobeService.access(
+        garment.wardrobe.id,
+        userId,
+      );
+      return { garment, permission };
     }
+    throw new ForbiddenException();
+  }
+
+  async findOne(id: number, userId?: number): Promise<Garment> {
+    return (await this.access(id, userId)).garment;
+  }
+
+  private async writable(id: number, userId?: number): Promise<Garment> {
+    const { garment, permission } = await this.access(id, userId);
+    if (!canWrite(permission)) throw new ForbiddenException();
+    return garment;
+  }
+
+  private async owned(id: number, userId?: number): Promise<Garment> {
+    const { garment, permission } = await this.access(id, userId);
+    if (permission !== 'OWNER') throw new ForbiddenException();
     return garment;
   }
 
@@ -126,7 +175,15 @@ export class GarmentService {
     return garment;
   }
 
-  async create(dto: CreateGarmentDto, userId?: number): Promise<Garment> {
+  /**
+   * Adds a garment to a wardrobe `userId` may write to (their default if none
+   * is given). The garment belongs to the wardrobe's owner.
+   */
+  async create(
+    dto: CreateGarmentDto,
+    userId?: number,
+    wardrobeId?: number,
+  ): Promise<Garment> {
     let photo: File | undefined = undefined;
     if (dto.files) {
       for await (const file of dto.files) {
@@ -150,15 +207,15 @@ export class GarmentService {
       photo: photo ?? undefined,
     });
 
-    if (userId != null) {
-      const user = await this.userRepository.findOneOrFail(userId);
-      garment.owner = user as any;
-    }
+    const wardrobe = await this.writableWardrobe(wardrobeId, userId);
+    garment.owner = wardrobe.owner;
+    garment.wardrobe = ref(wardrobe);
 
     await this.garmentRepository.getEntityManager().persistAndFlush(garment);
     return garment;
   }
 
+  /** Copies a garment `userId` can see into a wardrobe they may write to. */
   async clone(
     sourceId: number,
     dto: {
@@ -170,11 +227,10 @@ export class GarmentService {
       notes?: string;
     },
     userId?: number,
+    wardrobeId?: number,
   ): Promise<Garment> {
-    const source = await this.garmentRepository.findOne(sourceId, {
-      populate: ['photo'],
-    });
-    if (!source) throw new NotFoundException('Garment not found');
+    const source = await this.findOne(sourceId, userId);
+    const wardrobe = await this.writableWardrobe(wardrobeId, userId);
 
     let photo: File | undefined;
     if (source.photo?.fileName) {
@@ -203,22 +259,31 @@ export class GarmentService {
       notes: dto.notes,
       photo: photo ?? undefined,
     });
-
-    if (userId != null) {
-      const user = await this.userRepository.findOneOrFail(userId);
-      garment.owner = user as any;
-    }
+    garment.owner = wardrobe.owner;
+    garment.wardrobe = ref(wardrobe);
 
     await this.garmentRepository.getEntityManager().persistAndFlush(garment);
     return garment;
   }
 
-  async findAvailableFilters(userId?: number): Promise<{
+  /**
+   * Filter values from one wardrobe (so a shared view never hints at private
+   * items), or from all of `userId`'s own garments.
+   */
+  async findAvailableFilters(
+    userId?: number,
+    wardrobeId?: number,
+  ): Promise<{
     brands: string[];
     sizes: string[];
     categories: string[];
   }> {
-    const where = userId != null ? { owner: { id: userId } } : { owner: null };
+    const where =
+      wardrobeId != null
+        ? this.inWardrobe(
+            (await this.wardrobeService.access(wardrobeId, userId)).wardrobe,
+          )
+        : this.ownerWhere(userId);
     const garments = await this.garmentRepository.find(where);
 
     const brands = [
@@ -243,11 +308,14 @@ export class GarmentService {
     return { brands, sizes, categories };
   }
 
+  /**
+   * Edits a garment `userId` may write to. `dto.wardrobeId` moves it to another
+   * wardrobe of the same owner, which changes who can see it.
+   */
   async update(
     id: number,
     dto: UpdateGarmentDto,
     userId?: number,
-    requestingUserId?: number,
   ): Promise<Garment> {
     let photo: File | undefined;
     if (dto.files) {
@@ -289,7 +357,16 @@ export class GarmentService {
       }
     }
 
-    const garment = await this.findOne(id, requestingUserId, userId);
+    const garment = await this.writable(id, userId);
+
+    if (dto.wardrobeId != null && dto.wardrobeId !== garment.wardrobe?.id) {
+      const target = await this.writableWardrobe(dto.wardrobeId, userId);
+      // Garments never change owner by moving between wardrobes
+      if ((target.owner?.id ?? null) !== (garment.owner?.id ?? null)) {
+        throw new ForbiddenException();
+      }
+      garment.wardrobe = ref(target);
+    }
 
     if (photo) {
       await this.deleteOldPhoto(garment);
@@ -329,9 +406,8 @@ export class GarmentService {
     id: number,
     nobgPhoto: MultipartFile | undefined,
     userId?: number,
-    requestingUserId?: number,
   ): Promise<void> {
-    const garment = await this.findOne(id, requestingUserId, userId);
+    const garment = await this.writable(id, userId);
     if (!garment.photo?.fileName) return;
     await this.streamNobgIfPresent(nobgPhoto, garment.photo.fileName);
   }
@@ -348,13 +424,16 @@ export class GarmentService {
     );
   }
 
-  async remove(id: number, userId?: number): Promise<void> {
-    const garment = await this.findOne(id, userId);
+  /** Deletes a garment; owner only. Returns the wardrobe it was in. */
+  async remove(id: number, userId?: number): Promise<number | undefined> {
+    const garment = await this.owned(id, userId);
+    const wardrobeId = garment.wardrobe?.id;
     await this.garmentRepository.getEntityManager().removeAndFlush(garment);
+    return wardrobeId;
   }
 
   async archive(id: number, userId?: number): Promise<Garment> {
-    const garment = await this.findOne(id, userId);
+    const garment = await this.owned(id, userId);
     garment.archived = !garment.archived;
     await this.garmentRepository.getEntityManager().flush();
     return garment;

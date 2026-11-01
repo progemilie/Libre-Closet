@@ -66,22 +66,44 @@ export class OutfitService {
     return outfit;
   }
 
+  /**
+   * Loads the slots' garments, keeping only `userId`'s own; slots pointing at
+   * anyone else's garment are emptied so an outfit can't reveal it.
+   */
+  private async ownGarmentsFor(
+    slots: OutfitSlot[] | undefined,
+    userId?: number,
+  ): Promise<{ slots: OutfitSlot[] | undefined; garments: Garment[] }> {
+    const garmentIds =
+      slots
+        ?.map((s) => s.garmentId)
+        .filter((id): id is number => id !== null) ?? [];
+    if (!garmentIds.length) return { slots, garments: [] };
+
+    const garments = await this.garmentRepository.find({
+      id: { $in: garmentIds },
+      owner: userId != null ? { id: userId } : null,
+    });
+    const allowed = new Set(garments.map((g) => g.id));
+    return {
+      slots: slots?.map((s) =>
+        s.garmentId !== null && !allowed.has(s.garmentId)
+          ? { ...s, garmentId: null }
+          : s,
+      ),
+      garments,
+    };
+  }
+
   async create(dto: CreateOutfitDto, userId?: number): Promise<Outfit> {
+    const { slots, garments } = await this.ownGarmentsFor(dto.slots, userId);
     const outfit = this.outfitRepository.create({
       name: dto.name,
       notes: dto.notes,
-      slots: dto.slots,
+      slots,
     });
 
-    const garmentIds =
-      dto.slots
-        ?.map((s) => s.garmentId)
-        .filter((id): id is number => id !== null) ?? [];
-
-    if (garmentIds.length) {
-      const garments = await this.garmentRepository.find({
-        id: { $in: garmentIds },
-      });
+    if (garments.length) {
       outfit.garments.set(garments);
     }
 
@@ -101,21 +123,16 @@ export class OutfitService {
   ): Promise<Outfit> {
     const outfit = await this.findOne(id, userId);
 
+    if (dto.slots !== undefined) {
+      const { slots, garments } = await this.ownGarmentsFor(dto.slots, userId);
+      wrap(outfit).assign({ slots });
+      outfit.garments.set(garments);
+    }
+
     wrap(outfit).assign({
       name: dto.name ?? outfit.name,
       notes: dto.notes ?? outfit.notes,
-      slots: dto.slots ?? outfit.slots,
     });
-
-    if (dto.slots !== undefined) {
-      const garmentIds = dto.slots
-        .map((s) => s.garmentId)
-        .filter((id): id is number => id !== null);
-      const garments = await this.garmentRepository.find({
-        id: { $in: garmentIds },
-      });
-      outfit.garments.set(garments);
-    }
 
     await this.outfitRepository.getEntityManager().flush();
     return outfit;

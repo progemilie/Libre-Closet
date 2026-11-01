@@ -107,3 +107,87 @@ describe('sqlite migrations', () => {
     }
   });
 });
+
+/** Last migration before wardrobes were introduced. */
+const BEFORE_WARDROBES = 'Migration20260617224532';
+
+describe('sqlite migrations: wardrobes', () => {
+  let dir: string;
+  let orm: MikroORM;
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'libre-closet-wardrobes-'));
+    orm = await MikroORM.init({
+      driver: BetterSqliteDriver,
+      dbName: join(dir, 'sqlite3.db'),
+      entities: [],
+      discovery: { warnWhenNoEntities: false },
+      extensions: [Migrator],
+      logger: () => undefined,
+      migrations: { migrationsList, transactional: true },
+    });
+  });
+
+  afterAll(async () => {
+    await orm?.close(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('puts every existing garment and share into its owner’s default wardrobe', async () => {
+    const migrator = orm.getMigrator();
+    const connection = orm.em.getConnection();
+    await migrator.up({ to: BEFORE_WARDROBES });
+
+    for (const statement of [
+      `insert into \`user\` (\`id\`, \`shareable_id\`, \`email\`, \`password\`) values (1, 'u1', 'a@example.com', 'x'), (2, 'u2', 'b@example.com', 'x'), (3, 'u3', 'c@example.com', 'x');`,
+      // Garments for two users and one ownerless (accounts-off) garment
+      `insert into \`garment\` (\`id\`, \`shareable_id\`, \`category\`, \`owner_id\`) values (1, 'g1', 'top', 1), (2, 'g2', 'top', 1), (3, 'g3', 'top', 2), (4, 'g4', 'top', null);`,
+      `insert into \`outfit\` (\`id\`, \`shareable_id\`, \`owner_id\`) values (1, 'o1', 1);`,
+      `insert into \`outfit_garments\` (\`outfit_id\`, \`garment_id\`) values (1, 1), (1, 2);`,
+      // An accepted share and an open invite link, both from user 1
+      `insert into \`wardrobe_share\` (\`id\`, \`grantor_id\`, \`grantee_id\`, \`permission\`, \`accepted_at\`, \`created_at\`) values (1, 1, 2, 'VIEW', 1767225600000, 1767225600000);`,
+      `insert into \`wardrobe_share\` (\`id\`, \`grantor_id\`, \`grantee_id\`, \`permission\`, \`invite_token\`, \`created_at\`) values (2, 1, null, 'MANAGE', 'tok', 1767225600000);`,
+    ]) {
+      await connection.execute(statement);
+    }
+
+    await migrator.up();
+
+    const wardrobes = await connection.execute<
+      { id: number; owner_id: number | null; is_default: number }[]
+    >(
+      `select \`id\`, \`owner_id\`, \`is_default\` from \`wardrobe\` order by \`id\`;`,
+    );
+    const defaultOf = (ownerId: number | null) =>
+      wardrobes.find((w) => w.owner_id === ownerId && w.is_default)?.id;
+
+    // One default per user (including user 3, who has nothing yet) + one ownerless
+    expect(wardrobes.map((w) => w.owner_id)).toEqual([1, 2, 3, null]);
+    expect(wardrobes.every((w) => w.is_default)).toBe(true);
+
+    const garmentRows = await connection.execute<
+      { id: number; wardrobe_id: number | null }[]
+    >(`select \`id\`, \`wardrobe_id\` from \`garment\` order by \`id\`;`);
+    expect(garmentRows).toEqual([
+      { id: 1, wardrobe_id: defaultOf(1) },
+      { id: 2, wardrobe_id: defaultOf(1) },
+      { id: 3, wardrobe_id: defaultOf(2) },
+      { id: 4, wardrobe_id: defaultOf(null) },
+    ]);
+
+    const shareRows = await connection.execute<
+      { id: number; wardrobe_id: number | null }[]
+    >(
+      `select \`id\`, \`wardrobe_id\` from \`wardrobe_share\` order by \`id\`;`,
+    );
+    expect(shareRows).toEqual([
+      { id: 1, wardrobe_id: defaultOf(1) },
+      { id: 2, wardrobe_id: defaultOf(1) },
+    ]);
+
+    const [joinRows] = await connection.execute<{ count: number }[]>(
+      `select count(*) as \`count\` from \`outfit_garments\`;`,
+    );
+    expect(joinRows.count).toBe(2);
+  });
+});

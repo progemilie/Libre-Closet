@@ -12,6 +12,7 @@ import {
   SharePermission,
 } from '../dal/entity/wardrobe-share.entity';
 import { User } from '../dal/entity/user.entity';
+import { Wardrobe } from '../dal/entity/wardrobe.entity';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
@@ -23,15 +24,26 @@ export class WardrobeShareService {
     private readonly shareRepository: EntityRepository<WardrobeShare>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
+    @InjectRepository(Wardrobe)
+    private readonly wardrobeRepository: EntityRepository<Wardrobe>,
   ) {}
 
   async createInviteLink(
     grantorId: number,
+    wardrobeId: number,
     permission: SharePermission,
   ): Promise<WardrobeShare> {
+    const wardrobe = await this.wardrobeRepository.findOne({
+      id: wardrobeId,
+      owner: { id: grantorId },
+    });
+    if (!wardrobe) {
+      throw new ForbiddenException('You can only share your own wardrobes.');
+    }
     const share = this.shareRepository.create({
       grantor: grantorId,
       grantee: null as any,
+      wardrobe,
       permission,
       inviteToken: randomUUID(),
     } as unknown as WardrobeShare);
@@ -42,7 +54,7 @@ export class WardrobeShareService {
   async acceptInvite(token: string, granteeId: number): Promise<WardrobeShare> {
     const share = await this.shareRepository.findOne(
       { inviteToken: token },
-      { populate: ['grantor', 'grantee'] },
+      { populate: ['grantor', 'grantee', 'wardrobe'] },
     );
     if (!share) {
       throw new NotFoundException(
@@ -63,7 +75,7 @@ export class WardrobeShareService {
     }
 
     const existing = await this.shareRepository.findOne({
-      grantor: { id: share.grantor.id },
+      wardrobe: { id: share.wardrobe?.id },
       grantee: { id: granteeId },
       acceptedAt: { $ne: null },
     });
@@ -100,22 +112,40 @@ export class WardrobeShareService {
   async getOutboundShares(grantorId: number): Promise<WardrobeShare[]> {
     return this.shareRepository.find(
       { grantor: { id: grantorId } },
-      { populate: ['grantee', 'grantor'] },
+      { populate: ['grantee', 'grantor', 'wardrobe'] },
     );
   }
 
   async getInboundShares(granteeId: number): Promise<WardrobeShare[]> {
     return this.shareRepository.find(
       { grantee: { id: granteeId }, acceptedAt: { $ne: null } },
-      { populate: ['grantor', 'grantee'] },
+      { populate: ['grantor', 'grantee', 'wardrobe'] },
     );
   }
 
   async getPendingShares(granteeId: number): Promise<WardrobeShare[]> {
     return this.shareRepository.find(
       { grantee: { id: granteeId }, acceptedAt: null },
-      { populate: ['grantor', 'grantee'] },
+      { populate: ['grantor', 'grantee', 'wardrobe'] },
     );
+  }
+
+  /** Ids of `grantorId`'s wardrobes that have a share or an open invite. */
+  async getSharedWardrobeIds(grantorId: number): Promise<number[]> {
+    const outbound = await this.shareRepository.find({
+      grantor: { id: grantorId },
+    });
+    return [
+      ...new Set(
+        outbound
+          .map((s) => s.wardrobe?.id)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+  }
+
+  async removeForWardrobe(wardrobeId: number): Promise<void> {
+    await this.shareRepository.nativeDelete({ wardrobe: { id: wardrobeId } });
   }
 
   async removeShare(shareId: number, userId: number): Promise<void> {
@@ -129,40 +159,23 @@ export class WardrobeShareService {
     await this.shareRepository.getEntityManager().removeAndFlush(share);
   }
 
-  async getAcceptedGrantorIds(userId: number): Promise<number[]> {
-    const shares = await this.shareRepository.find({
-      grantee: { id: userId },
-      acceptedAt: { $ne: null },
-    });
-    return shares.map((s) => s.grantor.id);
-  }
-
+  /** The permission `userId` has on a wardrobe through an accepted share. */
   async getSharePermission(
     userId: number,
-    grantorId: number,
+    wardrobeId: number,
   ): Promise<SharePermission | null> {
     const share = await this.shareRepository.findOne({
-      grantor: { id: grantorId },
+      wardrobe: { id: wardrobeId },
       grantee: { id: userId },
       acceptedAt: { $ne: null },
     });
     return share?.permission ?? null;
   }
 
-  async canView(userId: number, grantorId: number): Promise<boolean> {
-    const permission = await this.getSharePermission(userId, grantorId);
-    return permission !== null;
-  }
-
-  async canManage(userId: number, grantorId: number): Promise<boolean> {
-    const permission = await this.getSharePermission(userId, grantorId);
-    return permission === SharePermission.MANAGE;
-  }
-
   async findInviteByToken(token: string): Promise<WardrobeShare | null> {
     return this.shareRepository.findOne(
       { inviteToken: token },
-      { populate: ['grantor', 'grantee'] },
+      { populate: ['grantor', 'grantee', 'wardrobe'] },
     );
   }
 

@@ -786,6 +786,264 @@
           "enumItems": [],
           "mappedType": "integer"
         },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "push_endpoint": {
+          "name": "push_endpoint",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "web_push_subscription": {
+          "name": "web_push_subscription",
+          "type": "json",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "json"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "name": "user_device",
+      "indexes": [
+        {
+          "columnNames": [
+            "push_endpoint"
+          ],
+          "composite": false,
+          "keyName": "user_device_push_endpoint_unique",
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "user_id"
+          ],
+          "composite": false,
+          "keyName": "user_device_user_id_index",
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "primary",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "user_device_user_id_foreign": {
+          "constraintName": "user_device_user_id_foreign",
+          "columnNames": [
+            "user_id"
+          ],
+          "localTableName": "user_device",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "user",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "is_default": {
+          "name": "is_default",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "false",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        }
+      },
+      "name": "wardrobe",
+      "indexes": [
+        {
+          "columnNames": [
+            "owner_id"
+          ],
+          "composite": false,
+          "keyName": "wardrobe_owner_id_index",
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "primary",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "wardrobe_owner_id_foreign": {
+          "constraintName": "wardrobe_owner_id_foreign",
+          "columnNames": [
+            "owner_id"
+          ],
+          "localTableName": "wardrobe",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "user",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
         "shareable_id": {
           "name": "shareable_id",
           "type": "text",
@@ -1009,6 +1267,22 @@
           "comment": null,
           "enumItems": [],
           "mappedType": "integer"
+        },
+        "wardrobe_id": {
+          "name": "wardrobe_id",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
         }
       },
       "name": "garment",
@@ -1029,6 +1303,16 @@
           ],
           "composite": false,
           "keyName": "garment_owner_id_index",
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columnNames": [
+            "wardrobe_id"
+          ],
+          "composite": false,
+          "keyName": "garment_wardrobe_id_index",
           "constraint": false,
           "primary": false,
           "unique": false
@@ -1070,6 +1354,19 @@
           ],
           "referencedTableName": "user",
           "deleteRule": "cascade",
+          "updateRule": "cascade"
+        },
+        "garment_wardrobe_id_foreign": {
+          "constraintName": "garment_wardrobe_id_foreign",
+          "columnNames": [
+            "wardrobe_id"
+          ],
+          "localTableName": "garment",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "wardrobe",
+          "deleteRule": "set null",
           "updateRule": "cascade"
         }
       },
@@ -1193,131 +1490,13 @@
           "enumItems": [],
           "mappedType": "integer"
         },
-        "user_agent": {
-          "name": "user_agent",
-          "type": "text",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "unique": false,
-          "length": null,
-          "precision": null,
-          "scale": null,
-          "default": null,
-          "comment": null,
-          "enumItems": [],
-          "mappedType": "text"
-        },
-        "push_endpoint": {
-          "name": "push_endpoint",
-          "type": "text",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "unique": false,
-          "length": null,
-          "precision": null,
-          "scale": null,
-          "default": null,
-          "comment": null,
-          "enumItems": [],
-          "mappedType": "text"
-        },
-        "web_push_subscription": {
-          "name": "web_push_subscription",
-          "type": "json",
+        "wardrobe_id": {
+          "name": "wardrobe_id",
+          "type": "integer",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": true,
-          "unique": false,
-          "length": null,
-          "precision": null,
-          "scale": null,
-          "default": null,
-          "comment": null,
-          "enumItems": [],
-          "mappedType": "json"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "integer",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "unique": false,
-          "length": null,
-          "precision": null,
-          "scale": null,
-          "default": null,
-          "comment": null,
-          "enumItems": [],
-          "mappedType": "integer"
-        }
-      },
-      "name": "user_device",
-      "indexes": [
-        {
-          "columnNames": [
-            "push_endpoint"
-          ],
-          "composite": false,
-          "keyName": "user_device_push_endpoint_unique",
-          "constraint": true,
-          "primary": false,
-          "unique": true
-        },
-        {
-          "columnNames": [
-            "user_id"
-          ],
-          "composite": false,
-          "keyName": "user_device_user_id_index",
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "primary",
-          "columnNames": [
-            "id"
-          ],
-          "composite": false,
-          "constraint": true,
-          "primary": true,
-          "unique": true
-        }
-      ],
-      "checks": [],
-      "foreignKeys": {
-        "user_device_user_id_foreign": {
-          "constraintName": "user_device_user_id_foreign",
-          "columnNames": [
-            "user_id"
-          ],
-          "localTableName": "user_device",
-          "referencedColumnNames": [
-            "id"
-          ],
-          "referencedTableName": "user",
-          "deleteRule": "cascade",
-          "updateRule": "cascade"
-        }
-      },
-      "nativeEnums": {}
-    },
-    {
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "unsigned": false,
-          "autoincrement": true,
-          "primary": true,
-          "nullable": false,
           "unique": false,
           "length": null,
           "precision": null,
@@ -1428,6 +1607,16 @@
       "indexes": [
         {
           "columnNames": [
+            "wardrobe_id"
+          ],
+          "composite": false,
+          "keyName": "wardrobe_share_wardrobe_id_index",
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columnNames": [
             "grantor_id"
           ],
           "composite": false,
@@ -1457,9 +1646,9 @@
           "unique": true
         },
         {
-          "keyName": "wardrobe_share_grantor_id_grantee_id_unique",
+          "keyName": "wardrobe_share_wardrobe_id_grantee_id_unique",
           "columnNames": [
-            "grantor_id",
+            "wardrobe_id",
             "grantee_id"
           ],
           "composite": true,
@@ -1480,6 +1669,19 @@
       ],
       "checks": [],
       "foreignKeys": {
+        "wardrobe_share_wardrobe_id_foreign": {
+          "constraintName": "wardrobe_share_wardrobe_id_foreign",
+          "columnNames": [
+            "wardrobe_id"
+          ],
+          "localTableName": "wardrobe_share",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "wardrobe",
+          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        },
         "wardrobe_share_grantor_id_foreign": {
           "constraintName": "wardrobe_share_grantor_id_foreign",
           "columnNames": [

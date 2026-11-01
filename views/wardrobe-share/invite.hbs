@@ -13,6 +13,11 @@
         <p class="text-base-content/60 mb-4">
           {{t 'lang.INVITE_FROM'}} <strong>{{grantorName}}</strong>
         </p>
+        {{#if wardrobeLabel}}
+        <p class="mb-4">
+          {{t 'lang.WARDROBE'}}: <strong>{{wardrobeLabel}}</strong>
+        </p>
+        {{/if}}
 
         <div class="mb-4">
           <div class="flex items-center gap-2 mb-2">

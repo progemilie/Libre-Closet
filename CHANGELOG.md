@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- ...
+#### Added
+
+- Multiple wardrobes per person: share one wardrobe and keep another private
+
+#### Fixed
+
+- Outfits can no longer include another person's garments
 
 ## 0.6.0 2026-10-5
 
