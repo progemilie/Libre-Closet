@@ -13,6 +13,7 @@ import { File } from './file.entity';
 import { Outfit } from './outfit.entity';
 import { ShareableId } from './shareableId.entity';
 import { User } from './user.entity';
+import { Wardrobe } from './wardrobe.entity';
 import { GarmentColor } from '../../wardrobe/garment-color.enum';
 
 export { GarmentColor };
@@ -61,6 +62,14 @@ export class Garment extends ShareableId {
     nullable: true,
   })
   public owner?: Ref<User>;
+
+  @ManyToOne({
+    entity: () => Wardrobe,
+    deleteRule: 'set null',
+    ref: true,
+    nullable: true,
+  })
+  public wardrobe?: Ref<Wardrobe>;
 
   @ManyToMany(() => Outfit, (outfit) => outfit.garments)
   public outfits = new Collection<Outfit>(this);

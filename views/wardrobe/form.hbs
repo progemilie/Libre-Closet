@@ -3,7 +3,7 @@
 <main class="p-4 pt-20 pb-24 max-w-lg mx-auto">
   <div class="flex items-center gap-3 mb-6">
     <a
-      href="{{#if garment}}/wardrobe/{{garment.id}}{{#if viewOwner}}?ownerId={{viewOwner}}{{/if}}{{else}}/wardrobe{{#if viewOwner}}?ownerId={{viewOwner}}{{/if}}{{/if}}"
+      href="{{backHref}}"
       class="btn btn-ghost btn-sm btn-circle"
     >
       <svg
@@ -28,9 +28,24 @@
 
   <form
     method="POST"
-    action="{{#if isClone}}/wardrobe/{{garment.id}}/clone{{#if viewOwner}}?ownerId={{viewOwner}}{{/if}}{{else if garment}}/wardrobe/{{garment.id}}{{#if viewOwner}}?ownerId={{viewOwner}}{{/if}}{{else}}/wardrobe{{#if viewOwner}}?ownerId={{viewOwner}}{{/if}}{{/if}}"
+    action="{{#if isClone}}/wardrobe/{{garment.id}}/clone{{else if garment}}/wardrobe/{{garment.id}}{{else}}/wardrobe{{/if}}"
     class="flex flex-col gap-4"
   >
+    {{#if wardrobeOptions.[1]}}
+    <div class="form-control">
+      <label class="label" for="wardrobeId"
+        ><span class="label-text">{{t 'lang.WARDROBE'}}</span></label
+      >
+      <select id="wardrobeId" name="wardrobeId" class="select select-bordered">
+        {{#each wardrobeOptions}}
+        <option value="{{this.id}}" {{#ifEquals ../selectedWardrobeId this.id}}selected{{/ifEquals}}>{{this.label}}</option>
+        {{/each}}
+      </select>
+    </div>
+    {{else}}
+    <input type="hidden" name="wardrobeId" value="{{selectedWardrobeId}}" />
+    {{/if}}
+
     <div class="form-control">
       <label class="label"
         ><span class="label-text">{{t 'lang.NAME'}}</span></label
@@ -127,7 +142,7 @@
 
     <div class="flex gap-2 mt-2">
       <a
-        href="{{#if garment}}/wardrobe/{{garment.id}}{{#if viewOwner}}?ownerId={{viewOwner}}{{/if}}{{else}}/wardrobe{{#if viewOwner}}?ownerId={{viewOwner}}{{/if}}{{/if}}"
+        href="{{backHref}}"
         class="btn btn-ghost flex-1"
         >{{t 'lang.CANCEL'}}</a
       >

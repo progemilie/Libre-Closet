@@ -10,5 +10,7 @@ export interface UpdateGarmentDto {
   notes?: string;
   washingDetails?: string;
   dateAquired?: string;
+  /** Move the garment to this wardrobe. */
+  wardrobeId?: number;
   files?: AsyncIterableIterator<MultipartFile>;
 }

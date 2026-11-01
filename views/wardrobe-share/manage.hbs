@@ -19,9 +19,14 @@
         hx-post="/wardrobe-share/create-invite-link"
         hx-target="#invite-link-result"
         hx-swap="innerHTML"
-        class="flex gap-2 items-center"
+        class="flex flex-wrap gap-2 items-center"
       >
-        <select name="permission" class="select select-bordered select-sm">
+        <select name="wardrobeId" class="select select-bordered select-sm" aria-label="{{t 'lang.WARDROBE'}}">
+          {{#each wardrobes}}
+          <option value="{{this.id}}" {{#if this.isDefault}}selected{{/if}}>{{this.label}}</option>
+          {{/each}}
+        </select>
+        <select name="permission" class="select select-bordered select-sm" aria-label="{{t 'lang.PERMISSION'}}">
           <option value="VIEW">{{t 'lang.PERMISSION_VIEW'}}</option>
           <option value="MANAGE">{{t 'lang.PERMISSION_MANAGE'}}</option>
         </select>
@@ -40,8 +45,9 @@
         {{#each outbound}}
         <li class="py-3 flex items-center justify-between">
           <div class="flex flex-col gap-1">
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <span class="font-medium">{{#if this.grantee}}{{this.grantee.email}}{{else}}{{t 'lang.PENDING_INVITE'}}{{/if}}</span>
+              <span class="badge badge-ghost badge-sm whitespace-nowrap">{{this.wardrobeLabel}}</span>
               <span class="badge badge-sm {{#ifEquals this.permission 'VIEW'}}badge-outline{{else}}badge-primary{{/ifEquals}}">{{this.permission}}</span>
               {{#unless this.acceptedAt}}
               <span class="badge badge-ghost badge-sm">{{t 'lang.PENDING'}}</span>
@@ -87,6 +93,7 @@ _="on click
         <li class="py-3 flex items-center justify-between">
           <div>
             <span class="font-medium">{{this.grantor.email}}</span>
+            <span class="badge badge-ghost badge-sm whitespace-nowrap ml-2">{{this.wardrobeLabel}}</span>
             <span class="badge badge-sm {{#ifEquals this.permission 'VIEW'}}badge-outline{{else}}badge-primary{{/ifEquals}} ml-2">{{this.permission}}</span>
           </div>
           <div class="flex gap-2">
@@ -113,7 +120,7 @@ _="on click
         {{#each inbound}}
         <li class="py-3 flex items-center justify-between">
           <div>
-            <a href="/wardrobe?ownerId={{this.grantor.id}}" class="font-medium link link-primary">{{this.grantor.email}}</a>
+            <a href="/wardrobe?wardrobeId={{this.wardrobeId}}" class="font-medium link link-primary">{{this.grantor.email}} · {{this.wardrobeLabel}}</a>
             <span class="badge badge-sm {{#ifEquals this.permission 'VIEW'}}badge-outline{{else}}badge-primary{{/ifEquals}} ml-2">{{this.permission}}</span>
           </div>
           <form method="post" action="/wardrobe-share/{{this.id}}/remove" class="inline">
