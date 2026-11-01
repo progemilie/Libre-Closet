@@ -1,0 +1,2 @@
+# Deploy files run on Linux; keep LF endings regardless of checkout platform
+deploy/* text eol=lf

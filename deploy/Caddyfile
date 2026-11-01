@@ -1,0 +1,4 @@
+closet.home.arpa {
+    tls internal
+    reverse_proxy libre-closet:3000
+}
