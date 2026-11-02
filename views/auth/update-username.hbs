@@ -1,0 +1,34 @@
+{{>navbar}}
+<main class="flex flex-col justify-center items-center h-full gap-3">
+  <form hx-post="/auth/update-username" hx-indicator="#loading" hx-trigger="submit">
+    <fieldset
+      class="fieldset bg-base-200 border-base-300 rounded-box w-xs border p-4"
+      hx-post="/auth/validate/update-username"
+      hx-indicator="#loading"
+      hx-trigger="change, blur delay:500ms"
+      hx-include="input"
+    >
+      <legend class="fieldset-legend">{{t 'lang.UPDATE_USERNAME'}}</legend>
+
+      <label class="label">{{t 'lang.NEW_USERNAME'}}</label>
+      <label class="input {{#if (filterErrors validationErrors "username")}}input-error{{/if}}">
+        <input
+          id="username"
+          name="username"
+          type="text"
+          value="{{#if input}}{{input.username}}{{else}}{{user.username}}{{/if}}"
+          placeholder="{{t 'lang.NEW_USERNAME'}}"
+          autocomplete="username"
+          autocapitalize="none"
+          required
+        />
+      </label>
+      {{#each (filterErrors validationErrors "username")}}
+      <p class="text-error">{{this}}</p>
+      {{/each}}
+
+      <button type="submit" id="submit" class="btn btn-neutral mt-4 {{#if validationErrors}}btn-disabled{{/if}}">{{t 'lang.UPDATE'}}</button>
+    </fieldset>
+  </form>
+</main>
+{{>dock}}

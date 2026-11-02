@@ -8,8 +8,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { User } from '../dal/entity/user.entity';
-import { PasswordReset } from '../dal/entity/passwordReset.entity';
-import { EmailModule } from '../email/email.module';
 import { ViewContextModule } from '../view-context/view-context.module';
 
 @Module({
@@ -22,8 +20,7 @@ import { ViewContextModule } from '../view-context/view-context.module';
         signOptions: { expiresIn: '365d' },
       }),
     }),
-    MikroOrmModule.forFeature([PasswordReset, User]),
-    EmailModule,
+    MikroOrmModule.forFeature([User]),
   ],
   controllers: [AuthController],
   providers: [

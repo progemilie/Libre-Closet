@@ -10,14 +10,14 @@ import { test, expect } from '@playwright/test';
 test('garment photo upload offers a direct camera capture entry point', async ({
   page,
 }) => {
-  const email = `camera-test-${Date.now()}@example.com`;
+  const username = `camera-test-${Date.now()}`;
   const password = 'Password123!';
 
   // Registration and garment creation are exercised elsewhere; set up state
   // directly via the same cookie-sharing request context so this test stays
   // focused on the capture-button behavior under test.
   await page.request.post('/auth/register', {
-    form: { email, password, confirmPassword: password },
+    form: { username, password, confirmPassword: password },
   });
   const createResponse = await page.request.post('/wardrobe', {
     form: { name: 'Camera Test Garment', category: 'shirt' },

@@ -69,9 +69,7 @@ export class WardrobeShareService {
     }
 
     if (share.grantee && share.grantee.id !== granteeId) {
-      throw new ForbiddenException(
-        'This invite was sent to a different email address.',
-      );
+      throw new ForbiddenException('This invite was sent to a different user.');
     }
 
     const existing = await this.shareRepository.findOne({

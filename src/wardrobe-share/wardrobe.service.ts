@@ -177,7 +177,7 @@ export class WardrobeService {
       id: w.id,
       label: this.isOwner(w, userId)
         ? WardrobeService.label(w, i18n)
-        : `${WardrobeService.label(w, i18n)} (${w.owner?.unwrap().email})`,
+        : `${WardrobeService.label(w, i18n)} (${w.owner?.unwrap().username})`,
       ownerId: w.owner?.id ?? null,
     }));
   }
@@ -210,7 +210,7 @@ export class WardrobeService {
           return {
             id: w.id,
             label: WardrobeService.label(w, i18n),
-            ownerName: w.owner?.unwrap().email,
+            ownerName: w.owner?.unwrap().username,
             permission: s.permission,
           };
         }),

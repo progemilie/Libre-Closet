@@ -24,18 +24,20 @@
     >
       <legend class="fieldset-legend">{{t 'lang.REGISTER'}}</legend>
 
-      <label class="label">{{t 'lang.EMAIL'}}</label>
-      <label class="input {{#if (filterErrors validationErrors "email")}}input-error{{/if}}">
+      <label class="label">{{t 'lang.USERNAME'}}</label>
+      <label class="input {{#if (filterErrors validationErrors "username")}}input-error{{/if}}">
         <input
-          id="email"
-          name="email"
-          type="email"
-          value="{{input.email}}"
-          placeholder="{{t 'lang.EMAIL'}}"
+          id="username"
+          name="username"
+          type="text"
+          value="{{input.username}}"
+          placeholder="{{t 'lang.USERNAME'}}"
+          autocomplete="username"
+          autocapitalize="none"
           required
         />
       </label>
-      {{#each (filterErrors validationErrors "email")}}
+      {{#each (filterErrors validationErrors "username")}}
       <p class="text-error">{{this}}</p>
       {{/each}}
 

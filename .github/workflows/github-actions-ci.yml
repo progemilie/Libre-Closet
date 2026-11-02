@@ -49,8 +49,6 @@ jobs:
           APP_NAME: Lazztech.Boilerplate
           ACCESS_TOKEN_SECRET: SecretKey
           PUSH_NOTIFICATION_ENDPOINT: test
-          EMAIL_FROM_ADDRESS: test
-          EMAIL_PASSWORD: test
           DATABASE_TYPE: sqlite
           FILE_STORAGE_TYPE: local
 
@@ -62,8 +60,6 @@ jobs:
           APP_NAME: Lazztech.Boilerplate
           ACCESS_TOKEN_SECRET: SecretKey
           PUSH_NOTIFICATION_ENDPOINT: test
-          EMAIL_FROM_ADDRESS: test
-          EMAIL_PASSWORD: test
           DATABASE_TYPE: sqlite
           FILE_STORAGE_TYPE: local
 
@@ -98,8 +94,6 @@ jobs:
           APP_NAME: Lazztech.Boilerplate
           ACCESS_TOKEN_SECRET: SecretKey
           PUSH_NOTIFICATION_ENDPOINT: test
-          EMAIL_FROM_ADDRESS: test
-          EMAIL_PASSWORD: test
           DATABASE_TYPE: postgres
           DATABASE_HOST: localhost
           DATABASE_PORT: "5432"
@@ -121,8 +115,6 @@ jobs:
           APP_NAME: Lazztech.Boilerplate
           ACCESS_TOKEN_SECRET: SecretKey
           PUSH_NOTIFICATION_ENDPOINT: test
-          EMAIL_FROM_ADDRESS: test
-          EMAIL_PASSWORD: test
           DATABASE_TYPE: postgres
           DATABASE_HOST: localhost
           DATABASE_PORT: "5432"

@@ -1,31 +1,13 @@
-import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
+import { IsNewPassword, IsUsername } from '../credentials.validators';
 import { Match } from '../match.decorator';
 import { i18nValidationMessage } from 'nestjs-i18n';
 import { I18nTranslations } from '../../i18n/generated/i18n.generated';
 
 export class RegisterDto {
-  @IsString()
-  @IsEmail(
-    {},
-    {
-      message: i18nValidationMessage<I18nTranslations>(
-        'lang.validation.IS_EMAIL',
-      ),
-    },
-  )
-  email: string;
+  @IsUsername()
+  username: string;
 
-  @IsString()
-  @MinLength(8, {
-    message: i18nValidationMessage<I18nTranslations>(
-      'lang.validation.MIN_PASSWORD_LENGTH',
-    ),
-  })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message: i18nValidationMessage<I18nTranslations>(
-      'lang.validation.PASSWORD_MUST_CONTAIN',
-    ),
-  })
+  @IsNewPassword()
   password: string;
 
   @Match('password', {

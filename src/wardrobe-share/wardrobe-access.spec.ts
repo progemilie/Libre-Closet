@@ -90,8 +90,8 @@ describe('Wardrobe access', () => {
     await orm.close(true);
   });
 
-  const createUser = async (email: string): Promise<User> => {
-    const user = orm.em.create(User, { email, password: 'hashed' } as User);
+  const createUser = async (username: string): Promise<User> => {
+    const user = orm.em.create(User, { username, password: 'hashed' } as User);
     await orm.em.persistAndFlush(user);
     return user;
   };
@@ -115,7 +115,7 @@ describe('Wardrobe access', () => {
 
   describe('WardrobeService', () => {
     it('creates one default wardrobe per user on first use', async () => {
-      const alice = await createUser('alice@example.com');
+      const alice = await createUser('alice');
 
       const first = await wardrobes.getDefault(alice.id);
       const second = await wardrobes.getDefault(alice.id);
@@ -126,7 +126,7 @@ describe('Wardrobe access', () => {
     });
 
     it('lists the default wardrobe first', async () => {
-      const alice = await createUser('alice@example.com');
+      const alice = await createUser('alice');
       await wardrobes.create('Archive', alice.id);
       const def = await wardrobes.getDefault(alice.id);
 
@@ -137,7 +137,7 @@ describe('Wardrobe access', () => {
     });
 
     it('keeps exactly one default when the default changes', async () => {
-      const alice = await createUser('alice@example.com');
+      const alice = await createUser('alice');
       const original = await wardrobes.getDefault(alice.id);
       const shared = await wardrobes.create('Shared', alice.id);
 
@@ -152,8 +152,8 @@ describe('Wardrobe access', () => {
     });
 
     it('renames only your own wardrobes', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const w = await wardrobes.create('Old', alice.id);
 
       await wardrobes.rename(w.id, '  New  ', alice.id);
@@ -171,7 +171,7 @@ describe('Wardrobe access', () => {
     });
 
     it('refuses to delete the default wardrobe or one with garments', async () => {
-      const alice = await createUser('alice@example.com');
+      const alice = await createUser('alice');
       const def = await wardrobes.getDefault(alice.id);
       const full = await wardrobes.create('Full', alice.id);
       await addGarment('Coat', alice.id, full.id);
@@ -185,8 +185,8 @@ describe('Wardrobe access', () => {
     });
 
     it('deletes an empty wardrobe together with its shares', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const empty = await wardrobes.create('Empty', alice.id);
       await share(alice, bob, empty.id);
 
@@ -201,7 +201,7 @@ describe('Wardrobe access', () => {
 
     it('works without accounts (ownerless wardrobes)', async () => {
       const def = await wardrobes.getDefault(undefined);
-      const alice = await createUser('alice@example.com');
+      const alice = await createUser('alice');
       const alices = await wardrobes.getDefault(alice.id);
 
       expect((await wardrobes.access(def.id, undefined)).permission).toBe(
@@ -218,8 +218,8 @@ describe('Wardrobe access', () => {
 
   describe('sharing is per wardrobe', () => {
     it('gives access to the shared wardrobe and nothing else', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const sharedW = await wardrobes.getDefault(alice.id);
       const privateW = await wardrobes.create('Private', alice.id);
       await share(alice, bob, sharedW.id);
@@ -236,8 +236,8 @@ describe('Wardrobe access', () => {
     });
 
     it('only lets the owner create an invite for a wardrobe', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const w = await wardrobes.getDefault(alice.id);
 
       await expect(
@@ -246,8 +246,8 @@ describe('Wardrobe access', () => {
     });
 
     it('allows sharing two wardrobes of one owner with the same person', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const one = await wardrobes.getDefault(alice.id);
       const two = await wardrobes.create('Second', alice.id);
 
@@ -264,8 +264,8 @@ describe('Wardrobe access', () => {
     });
 
     it('lists writable wardrobes: your own plus ones shared with edit rights', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const viewOnly = await wardrobes.getDefault(alice.id);
       const editable = await wardrobes.create('Editable', alice.id);
       await share(alice, bob, viewOnly.id);
@@ -280,7 +280,7 @@ describe('Wardrobe access', () => {
 
   describe('GarmentService', () => {
     it('lists only the garments of the requested wardrobe', async () => {
-      const alice = await createUser('alice@example.com');
+      const alice = await createUser('alice');
       const sharedW = await wardrobes.getDefault(alice.id);
       const privateW = await wardrobes.create('Private', alice.id);
       await addGarment('Jacket', alice.id, sharedW.id);
@@ -296,7 +296,7 @@ describe('Wardrobe access', () => {
     });
 
     it('puts a garment without a wardrobe into the default one', async () => {
-      const alice = await createUser('alice@example.com');
+      const alice = await createUser('alice');
       const def = await wardrobes.getDefault(alice.id);
 
       const g = await addGarment('Shirt', alice.id);
@@ -305,8 +305,8 @@ describe('Wardrobe access', () => {
     });
 
     it('hides a shared owner’s private garments from the grantee', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const sharedW = await wardrobes.getDefault(alice.id);
       const privateW = await wardrobes.create('Private', alice.id);
       const jacket = await addGarment('Jacket', alice.id, sharedW.id);
@@ -330,8 +330,8 @@ describe('Wardrobe access', () => {
     });
 
     it('scopes filter values to the wardrobe so private items do not leak', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const sharedW = await wardrobes.getDefault(alice.id);
       const privateW = await wardrobes.create('Private', alice.id);
       await garments.create(
@@ -352,8 +352,8 @@ describe('Wardrobe access', () => {
     });
 
     it('lets a grantee with edit rights add to the shared wardrobe, owned by its owner', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const sharedW = await wardrobes.getDefault(alice.id);
       const privateW = await wardrobes.create('Private', alice.id);
       await share(alice, bob, sharedW.id, SharePermission.MANAGE);
@@ -368,8 +368,8 @@ describe('Wardrobe access', () => {
     });
 
     it('refuses adding to a wardrobe shared view-only', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const sharedW = await wardrobes.getDefault(alice.id);
       await share(alice, bob, sharedW.id);
 
@@ -379,8 +379,8 @@ describe('Wardrobe access', () => {
     });
 
     it('moves a garment between its owner’s wardrobes', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const sharedW = await wardrobes.getDefault(alice.id);
       const privateW = await wardrobes.create('Private', alice.id);
       await share(alice, bob, sharedW.id);
@@ -393,8 +393,8 @@ describe('Wardrobe access', () => {
     });
 
     it('refuses to move a garment into someone else’s wardrobe', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const alicesW = await wardrobes.getDefault(alice.id);
       const bobsW = await wardrobes.getDefault(bob.id);
       await share(alice, bob, alicesW.id, SharePermission.MANAGE);
@@ -411,8 +411,8 @@ describe('Wardrobe access', () => {
     });
 
     it('lets only the owner archive or delete', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const sharedW = await wardrobes.getDefault(alice.id);
       await share(alice, bob, sharedW.id, SharePermission.MANAGE);
       const g = await addGarment('Hat', alice.id, sharedW.id);
@@ -429,8 +429,8 @@ describe('Wardrobe access', () => {
 
   describe('OutfitService', () => {
     it('never attaches another user’s garment to an outfit', async () => {
-      const alice = await createUser('alice@example.com');
-      const bob = await createUser('bob@example.com');
+      const alice = await createUser('alice');
+      const bob = await createUser('bob');
       const alicesGarment = await addGarment('Diary', alice.id);
       const bobsGarment = await addGarment('Boots', bob.id);
 

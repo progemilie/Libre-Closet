@@ -191,3 +191,69 @@ describe('sqlite migrations: wardrobes', () => {
     expect(joinRows.count).toBe(2);
   });
 });
+
+/** Last migration before usernames replaced email addresses. */
+const BEFORE_USERNAMES = 'Migration20261101191832';
+
+describe('sqlite migrations: usernames', () => {
+  let dir: string;
+  let orm: MikroORM;
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'libre-closet-usernames-'));
+    orm = await MikroORM.init({
+      driver: BetterSqliteDriver,
+      dbName: join(dir, 'sqlite3.db'),
+      entities: [],
+      discovery: { warnWhenNoEntities: false },
+      extensions: [Migrator],
+      logger: () => undefined,
+      migrations: { migrationsList, transactional: true },
+    });
+  });
+
+  afterAll(async () => {
+    await orm?.close(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('turns each email address into a lowercase username, keeping the user', async () => {
+    const migrator = orm.getMigrator();
+    const connection = orm.em.getConnection();
+    await migrator.up({ to: BEFORE_USERNAMES });
+
+    for (const statement of [
+      `insert into \`user\` (\`id\`, \`shareable_id\`, \`email\`, \`password\`) values (1, 'u1', 'Alice@Example.com', 'x'), (2, 'u2', 'bob@example.com', 'x');`,
+      `insert into \`garment\` (\`id\`, \`shareable_id\`, \`category\`, \`owner_id\`) values (1, 'g1', 'top', 1);`,
+    ]) {
+      await connection.execute(statement);
+    }
+
+    await migrator.up();
+
+    const users = await connection.execute<{ id: number; username: string }[]>(
+      `select \`id\`, \`username\` from \`user\` order by \`id\`;`,
+    );
+    expect(users).toEqual([
+      { id: 1, username: 'alice@example.com' },
+      { id: 2, username: 'bob@example.com' },
+    ]);
+
+    const columns = await connection.execute<{ name: string }[]>(
+      `select \`name\` from pragma_table_info('user');`,
+    );
+    expect(columns.map((c) => c.name)).not.toContain('email');
+
+    // Still unique
+    await expect(
+      connection.execute(
+        `insert into \`user\` (\`shareable_id\`, \`username\`, \`password\`) values ('u3', 'bob@example.com', 'x');`,
+      ),
+    ).rejects.toThrow(/UNIQUE/);
+
+    const [garments] = await connection.execute<{ count: number }[]>(
+      `select count(*) as \`count\` from \`garment\`;`,
+    );
+    expect(garments.count).toBe(1);
+  });
+});

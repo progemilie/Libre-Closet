@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Multiple wardrobes per person: share one wardrobe and keep another private
 
+#### Changed
+
+- Accounts use a username instead of an email address; existing accounts keep their address as the username, and can change it
+- Change your password from your profile; a forgotten password is reset by whoever runs the server
+
 #### Fixed
 
 - Outfits can no longer include another person's garments

@@ -172,9 +172,6 @@ npm run start:prod
 | `OBJECT_STORAGE_ENDPOINT`          | S3-compatible endpoint URL                     | -              | `https://s3.example.com:8443`                                                             |
 | `OBJECT_STORAGE_REGION`            | S3 region                                      | `us-east-1`    | `us-west-1`                                                                               |
 | `OBJECT_STORAGE_BUCKET_NAME`       | S3 bucket name                                 | `libre-closet` | `my-awesome-closet-manager-bucket`                                                        |
-| `EMAIL_FROM_ADDRESS`               | From address for password reset emails         | -              | `LibreCloset@example.com`                                                                 |
-| `EMAIL_TRANSPORT`                  | `gmail` or `mailgun`                           | `gmail`        | `mailgun`                                                                                 |
-| `EMAIL_API_KEY`                    | Mailgun API key                                | -              | `fyhn2437cryb248cbrdc32`                                                                  |
 | `PUBLIC_VAPID_KEY`                 | Web push - generate for production             | -              | `BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U` |
 | `PRIVATE_VAPID_KEY`                | Web push - generate for production             | -              | `UUxI4O8-FbRouAevSmBQ6o18hgE4nSG3qwvJTfKc-ls`                                             |
 

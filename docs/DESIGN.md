@@ -105,7 +105,7 @@ erDiagram
         string shareableId UK
         string firstName
         string lastName
-        string email UK
+        string username UK
         string password
         boolean flagged
         boolean banned

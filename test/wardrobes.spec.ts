@@ -7,8 +7,8 @@ import { test, expect, type Page, type Browser } from '@playwright/test';
 
 const stamp = Date.now();
 const PASSWORD = 'TestPass123';
-const alice = `wardrobes-a-${stamp}@example.com`;
-const bob = `wardrobes-b-${stamp}@example.com`;
+const alice = `wardrobes-a-${stamp}`;
+const bob = `wardrobes-b-${stamp}`;
 const PRIVATE_NAME = `Private ${stamp}`;
 const JACKET = `Shared Jacket ${stamp}`;
 const DIARY = `Private Diary ${stamp}`;
@@ -18,13 +18,13 @@ test.describe.configure({ mode: 'serial' });
 let alicePage: Page;
 let bobPage: Page;
 
-async function register(browser: Browser, email: string): Promise<Page> {
+async function register(browser: Browser, username: string): Promise<Page> {
   const page = await (await browser.newContext()).newPage();
   page.on('dialog', (dialog) => dialog.accept());
   await page.goto('/auth/register');
   // Each field is validated live and the form re-rendered; let each settle
   for (const [field, value] of [
-    ['email', email],
+    ['username', username],
     ['password', PASSWORD],
     ['confirmPassword', PASSWORD],
   ]) {

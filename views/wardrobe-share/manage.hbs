@@ -46,7 +46,7 @@
         <li class="py-3 flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="font-medium">{{#if this.grantee}}{{this.grantee.email}}{{else}}{{t 'lang.PENDING_INVITE'}}{{/if}}</span>
+              <span class="font-medium">{{#if this.grantee}}{{this.grantee.username}}{{else}}{{t 'lang.PENDING_INVITE'}}{{/if}}</span>
               <span class="badge badge-ghost badge-sm whitespace-nowrap">{{this.wardrobeLabel}}</span>
               <span class="badge badge-sm {{#ifEquals this.permission 'VIEW'}}badge-outline{{else}}badge-primary{{/ifEquals}}">{{this.permission}}</span>
               {{#unless this.acceptedAt}}
@@ -92,7 +92,7 @@ _="on click
         {{#each pending}}
         <li class="py-3 flex items-center justify-between">
           <div>
-            <span class="font-medium">{{this.grantor.email}}</span>
+            <span class="font-medium">{{this.grantor.username}}</span>
             <span class="badge badge-ghost badge-sm whitespace-nowrap ml-2">{{this.wardrobeLabel}}</span>
             <span class="badge badge-sm {{#ifEquals this.permission 'VIEW'}}badge-outline{{else}}badge-primary{{/ifEquals}} ml-2">{{this.permission}}</span>
           </div>
@@ -120,7 +120,7 @@ _="on click
         {{#each inbound}}
         <li class="py-3 flex items-center justify-between">
           <div>
-            <a href="/wardrobe?wardrobeId={{this.wardrobeId}}" class="font-medium link link-primary">{{this.grantor.email}} · {{this.wardrobeLabel}}</a>
+            <a href="/wardrobe?wardrobeId={{this.wardrobeId}}" class="font-medium link link-primary">{{this.grantor.username}} · {{this.wardrobeLabel}}</a>
             <span class="badge badge-sm {{#ifEquals this.permission 'VIEW'}}badge-outline{{else}}badge-primary{{/ifEquals}} ml-2">{{this.permission}}</span>
           </div>
           <form method="post" action="/wardrobe-share/{{this.id}}/remove" class="inline">

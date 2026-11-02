@@ -3,10 +3,9 @@ import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { PasswordReset } from '../dal/entity/passwordReset.entity';
 import { User } from '../dal/entity/user.entity';
-import { EmailService } from '../email/email.service';
 import { AuthController } from './auth.controller';
+import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { RegistrationGuard } from './registration.guard';
 
@@ -24,7 +23,6 @@ describe('AuthController', () => {
       providers: [
         ConfigService,
         AuthService,
-        EmailService,
         {
           provide: EntityManager,
           useValue: {
@@ -33,14 +31,6 @@ describe('AuthController', () => {
         },
         {
           provide: getRepositoryToken(User),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            persistAndFlush: jest.fn(),
-          },
-        },
-        {
-          provide: getRepositoryToken(PasswordReset),
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),
@@ -72,6 +62,25 @@ describe('AuthController', () => {
           typeof g === 'function' ? g : g.constructor,
         );
         expect(guardTypes).toContain(RegistrationGuard);
+      });
+    });
+  });
+
+  describe('AuthGuard', () => {
+    const guardedMethods = [
+      'getUpdateUsername',
+      'postValidateUpdateUsername',
+      'postUpdateUsername',
+      'getChangePassword',
+      'postValidateChangePassword',
+      'postChangePassword',
+    ];
+
+    guardedMethods.forEach((method) => {
+      it(`applies AuthGuard to ${method}`, () => {
+        const guards: any[] =
+          Reflect.getMetadata('__guards__', controller[method]) ?? [];
+        expect(guards).toContain(AuthGuard);
       });
     });
   });

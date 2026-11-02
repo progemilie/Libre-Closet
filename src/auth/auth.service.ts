@@ -10,69 +10,65 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../dal/entity/user.entity';
 import * as bcrypt from 'bcryptjs';
-import { ChangePasswordDto } from './dto/changePassword.dto';
 import { Payload } from './dto/payload.dto';
-import { EmailService } from '../email/email.service';
-import { PasswordReset } from '../dal/entity/passwordReset.entity';
-import { randomInt } from 'crypto';
-import { ResetPasswordDto } from './dto/resetPassword.dto';
-import Handlebars from 'handlebars';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { randomBytes } from 'crypto';
+import { normalizeUsername } from './credentials.validators';
 
 @Injectable()
 export class AuthService {
   private logger = new Logger(AuthService.name);
-  private readonly passwordResetTemplate: Handlebars.TemplateDelegate;
 
   constructor(
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private jwtService: JwtService,
     private readonly em: EntityManager,
-    private emailService: EmailService,
-    @InjectRepository(PasswordReset)
-    private passwordResetRepository: EntityRepository<PasswordReset>,
-  ) {
-    this.passwordResetTemplate = Handlebars.compile(
-      readFileSync(
-        join(__dirname, '..', '..', 'views', 'email', 'password-reset.hbs'),
-        'utf-8',
-      ),
-    );
-  }
+  ) {}
 
-  async register(email: string, password: string): Promise<string> {
+  async register(username: string, password: string): Promise<string> {
     this.logger.debug(this.register.name);
-    const existingUser = await this.userRepository.findOne({ email });
-    if (existingUser) {
-      this.logger.debug(`User already exists with email address: ${email}`);
+    username = normalizeUsername(username);
+    if (await this.isUsernameTaken(username)) {
+      this.logger.debug(`User already exists with username: ${username}`);
       throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const user = this.userRepository.create({
-      email,
+      username,
       password: hashedPassword,
     } as User);
     await this.em.persistAndFlush(user);
 
-    return this.jwtService.signAsync({
-      userId: user.id,
-      email: user.email,
-      pwf: hashedPassword.slice(-8),
-    } as Payload);
+    return this.signToken(user);
   }
 
-  async signIn(email: string, password: string): Promise<string> {
-    const user = await this.userRepository.findOneOrFail({ email });
+  /** Whether another account (not `exceptUserId`) already uses this username. */
+  async isUsernameTaken(
+    username: string,
+    exceptUserId?: number,
+  ): Promise<boolean> {
+    const user = await this.userRepository.findOne({
+      username: normalizeUsername(username),
+    });
+    return !!user && user.id !== exceptUserId;
+  }
+
+  async signIn(username: string, password: string): Promise<string> {
+    const user = await this.userRepository.findOneOrFail({
+      username: normalizeUsername(username),
+    });
     const valid = await bcrypt.compare(password, user?.password);
     if (!valid) {
       throw new UnauthorizedException();
     }
+    return this.signToken(user);
+  }
+
+  private signToken(user: User): Promise<string> {
     return this.jwtService.signAsync({
       userId: user.id,
-      email: user.email,
+      username: user.username,
       pwf: user.password.slice(-8),
     } as Payload);
   }
@@ -87,20 +83,25 @@ export class AuthService {
     }
   }
 
-  public async changePassword(userId: any, details: ChangePasswordDto) {
+  /** Returns a new token, as the password change invalidates the old one. */
+  public async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<string> {
     this.logger.debug(this.changePassword.name);
     const user = await this.userRepository.findOneOrFail({ id: userId });
-
-    if (await bcrypt.compare(details.oldPassword, user.password)) {
-      const newHashedPassword = await bcrypt.hash(details.newPassword, 12);
-      user.password = newHashedPassword;
-      return await this.em.persistAndFlush(user);
+    if (!(await bcrypt.compare(currentPassword, user.password))) {
+      throw new UnauthorizedException();
     }
+    user.password = await bcrypt.hash(newPassword, 12);
+    await this.em.persistAndFlush(user);
+    return this.signToken(user);
   }
 
-  public async changeEmail(userId: any, newEmail: string) {
+  public async changeUsername(userId: number, username: string) {
     const user = await this.userRepository.findOneOrFail({ id: userId });
-    user.email = newEmail;
+    user.username = normalizeUsername(username);
     await this.em.persistAndFlush(user);
   }
 
@@ -109,33 +110,15 @@ export class AuthService {
     await this.em.removeAndFlush(user);
   }
 
-  public async resetPassword(details: ResetPasswordDto) {
+  /** For a forgotten password: sets and returns a random temporary one. */
+  public async resetPassword(username: string): Promise<string> {
     this.logger.debug(this.resetPassword.name);
     const user = await this.userRepository.findOneOrFail({
-      email: details.email,
+      username: normalizeUsername(username),
     });
-
-    const passwordReset = await user.passwordReset.load();
-
-    if (passwordReset?.pin === details.resetCode) {
-      const hashedPassword = await bcrypt.hash(details.password, 12);
-      user.password = hashedPassword;
-      await this.em.persistAndFlush(user);
-    }
-  }
-
-  async sendPasswordResetEmail(email: string) {
-    this.logger.debug(this.sendPasswordResetEmail.name);
-    const user = await this.userRepository.findOneOrFail({ email });
-    const pin = randomInt(100000, 999999).toString();
-    await this.emailService.sendEmailFromPrimaryAddress({
-      to: user.email!,
-      subject: `Password reset for ${user.email}`,
-      text: `Hello, ${user.email}, please paste in the follow to reset your password: ${pin}`,
-      html: this.passwordResetTemplate({ email: user.email, pin }),
-    });
-
-    const passwordReset = this.passwordResetRepository.create({ pin, user });
-    await this.em.persistAndFlush(passwordReset);
+    const temporaryPassword = randomBytes(12).toString('base64url');
+    user.password = await bcrypt.hash(temporaryPassword, 12);
+    await this.em.persistAndFlush(user);
+    return temporaryPassword;
   }
 }
