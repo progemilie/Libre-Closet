@@ -31,7 +31,8 @@ async function login(page: Page, name: string, password: string) {
 }
 
 test.beforeAll(async ({ request }) => {
-  const res = await request.get('/auth/register');
+  // /auth/profile is 404 when accounts are off (401 when on, logged out)
+  const res = await request.get('/auth/profile');
   test.skip(res.status() === 404, 'AUTH_ENABLED is off');
 });
 

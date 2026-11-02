@@ -66,7 +66,8 @@ let privateWardrobeId: number;
 let diaryId: number;
 
 test.beforeAll(async ({ browser, request }) => {
-  const res = await request.get('/auth/register');
+  // /auth/profile is 404 when accounts are off (401 when on, logged out)
+  const res = await request.get('/auth/profile');
   test.skip(res.status() === 404, 'AUTH_ENABLED is off');
   alicePage = await register(browser, alice);
   bobPage = await register(browser, bob);
