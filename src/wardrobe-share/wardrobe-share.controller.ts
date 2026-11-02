@@ -138,7 +138,7 @@ export class WardrobeShareController {
       permissionLabel,
       grantorName:
         share.grantor.unwrap().firstName ||
-        share.grantor.unwrap().email ||
+        share.grantor.unwrap().username ||
         'A user',
       wardrobeLabel: share.wardrobe
         ? WardrobeService.label(share.wardrobe.unwrap(), i18n)

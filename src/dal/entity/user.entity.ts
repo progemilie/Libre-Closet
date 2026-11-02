@@ -27,9 +27,10 @@ export class User extends ShareableId {
   @Property({ nullable: true })
   public lastName?: string;
 
+  // Nullable only because tightening it would rebuild the SQLite `user` table (#129)
   @Unique()
   @Property({ nullable: true })
-  public email?: string;
+  public username?: string;
 
   @Property()
   public password!: string;

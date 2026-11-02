@@ -151,8 +151,8 @@
           "enumItems": [],
           "mappedType": "text"
         },
-        "email": {
-          "name": "email",
+        "username": {
+          "name": "username",
           "type": "text",
           "unsigned": false,
           "autoincrement": false,
@@ -204,10 +204,10 @@
       "indexes": [
         {
           "columnNames": [
-            "email"
+            "username"
           ],
           "composite": false,
-          "keyName": "user_email_unique",
+          "keyName": "user_username_unique",
           "constraint": true,
           "primary": false,
           "unique": true

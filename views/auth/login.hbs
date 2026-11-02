@@ -42,12 +42,14 @@
     >
       <legend class="fieldset-legend">{{t 'lang.LOGIN'}}</legend>
 
-      <label class="label">{{t 'lang.EMAIL'}}</label>
+      <label class="label">{{t 'lang.USERNAME'}}</label>
       <label class="input">
         <input
-          name="email"
-          type="email"
-          placeholder="{{t 'lang.EMAIL'}}"
+          name="username"
+          type="text"
+          placeholder="{{t 'lang.USERNAME'}}"
+          autocomplete="username"
+          autocapitalize="none"
           required
         />
       </label>
@@ -59,11 +61,10 @@
           type="password"
           required
           placeholder="{{t 'lang.PASSWORD'}}"
+          autocomplete="current-password"
         />
       </label>
-      <a class="ml-auto link link-info" href="/auth/reset"
-        >{{t 'lang.FORGOT_PASSWORD'}}</a
-      >
+      <p class="text-base-content/70">{{t 'lang.FORGOT_PASSWORD_HINT'}}</p>
       <button type="submit" class="btn btn-neutral mt-4">
         {{t 'lang.LOGIN'}}
       </button>

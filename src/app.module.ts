@@ -10,7 +10,6 @@ import { AuthModule } from './auth/auth.module';
 import { DalModule } from './dal/dal.module';
 import { NotificationModule } from './notification/notification.module';
 import { FileModule } from './file/file.module';
-import { EmailModule } from './email/email.module';
 import { WeatherModule } from './weather/weather.module';
 import { AcceptLanguageResolver, I18nModule } from 'nestjs-i18n';
 import { OpenGraphModule } from './open-graph/open-graph.module';
@@ -186,7 +185,6 @@ import { ViewContextModule } from './view-context/view-context.module';
     DalModule,
     AuthModule,
     FileModule,
-    EmailModule,
     NotificationModule,
     OpenGraphModule,
     WeatherModule,

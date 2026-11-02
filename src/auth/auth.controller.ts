@@ -4,7 +4,6 @@ import {
   Get,
   Logger,
   Post,
-  Query,
   Redirect,
   Render,
   Res,
@@ -16,20 +15,44 @@ import { I18n, I18nContext } from 'nestjs-i18n';
 import { AuthGuard } from './auth.guard';
 import { RegistrationGuard } from './registration.guard';
 import { AuthService } from './auth.service';
-import { EmailDto } from './dto/email.dto';
+import { ChangePasswordDto } from './dto/changePassword.dto';
 import { LoginDto } from './dto/login.dto';
 import { Payload } from './dto/payload.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ResetPasswordDto } from './dto/resetPassword.dto';
 import { User } from './user.decorator';
-import { UpdateEmailDto } from './dto/updateEmail.dto';
-import { minutes, seconds, Throttle } from '@nestjs/throttler';
+import { UpdateUsernameDto } from './dto/updateUsername.dto';
+import { seconds, Throttle } from '@nestjs/throttler';
+
+const ACCESS_TOKEN_COOKIE = {
+  path: '/',
+  maxAge: 365 * 24 * 60 * 60 * 1000, // 365 days
+  httpOnly: true, // Prevents client-side JS from reading it
+};
 
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private authService: AuthService) {}
+
+  /** Validates the DTO, and that no other account has its `username`. */
+  private async validateWithUsername(
+    i18n: I18nContext,
+    instance: RegisterDto | UpdateUsernameDto,
+    exceptUserId?: number,
+  ) {
+    const validationErrors = await i18n.validate(instance);
+    if (
+      !validationErrors.some((e) => e.property === 'username') &&
+      (await this.authService.isUsernameTaken(instance.username, exceptUserId))
+    ) {
+      validationErrors.push({
+        property: 'username',
+        constraints: { taken: i18n.t('lang.validation.USERNAME_TAKEN') },
+      });
+    }
+    return validationErrors;
+  }
 
   @UseGuards(RegistrationGuard)
   @Post('register')
@@ -39,7 +62,7 @@ export class AuthController {
     @Res() reply: FastifyReply,
   ): Promise<any> {
     const instance = plainToInstance(RegisterDto, body);
-    const validationErrors = await i18n.validate(instance);
+    const validationErrors = await this.validateWithUsername(i18n, instance);
     if (validationErrors.length) {
       return reply.view('auth/register', {
         layout: 'layout',
@@ -49,12 +72,11 @@ export class AuthController {
       });
     }
 
-    const jwt = await this.authService.register(body.email, body.password);
-    reply.setCookie('access_token', jwt, {
-      path: '/',
-      maxAge: 365 * 24 * 60 * 60 * 1000, // 365 days
-      httpOnly: true, // Prevents client-side JS from reading it
-    });
+    const jwt = await this.authService.register(
+      instance.username,
+      instance.password,
+    );
+    reply.setCookie('access_token', jwt, ACCESS_TOKEN_COOKIE);
     return reply.redirect('/auth/profile', 302);
   }
 
@@ -66,7 +88,7 @@ export class AuthController {
     @Body() body: RegisterDto,
   ) {
     const instance = plainToInstance(RegisterDto, body);
-    const validationErrors = await i18n.validate(instance);
+    const validationErrors = await this.validateWithUsername(i18n, instance);
     if (validationErrors.length) {
       return {
         input: body,
@@ -82,14 +104,10 @@ export class AuthController {
   async postLogin(@Body() loginDto: LoginDto, @Res() reply: FastifyReply) {
     try {
       const jwt = await this.authService.signIn(
-        loginDto.email,
+        loginDto.username,
         loginDto.password,
       );
-      reply.setCookie('access_token', jwt, {
-        path: '/',
-        maxAge: 365 * 24 * 60 * 60 * 1000, // 365 days
-        httpOnly: true, // Prevents client-side JS from reading it
-      });
+      reply.setCookie('access_token', jwt, ACCESS_TOKEN_COOKIE);
       reply.redirect('/auth/profile', 302);
     } catch (error) {
       this.logger.warn(error);
@@ -117,82 +135,6 @@ export class AuthController {
       ogTitle: i18n.t('lang.LOGIN_OG_TITLE'),
       ogDescription: i18n.t('lang.LOGIN_OG_DESC'),
     };
-  }
-
-  @Get('reset')
-  @Render('auth/reset')
-  getReset(@Query('email') emailQueryParam: string): any {
-    return {
-      input: {
-        email: emailQueryParam,
-      },
-    };
-  }
-
-  @Post('reset')
-  async postReset(@Body() emailDto: EmailDto, @Res() reply: FastifyReply) {
-    try {
-      await this.authService.sendPasswordResetEmail(emailDto.email);
-      return reply.redirect(`/auth/reset-code?email=${emailDto.email}`, 302);
-    } catch (error) {
-      this.logger.warn(error);
-      return reply.view('auth/reset', {
-        layout: 'layout',
-        error,
-        ...((reply as any).locals ?? {}),
-      });
-    }
-  }
-
-  @Get('reset-code')
-  @Render('auth/reset-code')
-  getResetCode(@Query('email') emailQueryParam: string): any {
-    return {
-      input: {
-        email: emailQueryParam,
-      },
-    };
-  }
-
-  @Throttle({ default: { limit: 5, ttl: minutes(10) } })
-  @Render('auth/reset-code')
-  @Post('validate/reset-code')
-  async postResetCodeValidate(
-    @I18n() i18n: I18nContext,
-    @Body() body: ResetPasswordDto,
-  ) {
-    console.log(body);
-    const instance = plainToInstance(ResetPasswordDto, body);
-    const validationErrors = await i18n.validate(instance);
-    if (validationErrors.length) {
-      return {
-        input: body,
-        validationErrors,
-      };
-    }
-
-    return { input: body };
-  }
-
-  @Post('reset-code')
-  async postResetCode(
-    @I18n() i18n: I18nContext,
-    @Body() body: ResetPasswordDto,
-    @Res() reply: FastifyReply,
-  ) {
-    const instance = plainToInstance(ResetPasswordDto, body);
-    const validationErrors = await i18n.validate(instance);
-    if (validationErrors.length) {
-      return reply.view('auth/reset-code', {
-        layout: 'layout',
-        input: body,
-        validationErrors,
-        ...((reply as any).locals ?? {}),
-      });
-    }
-
-    await this.authService.resetPassword(body);
-    return reply.redirect('/auth/login', 302);
   }
 
   @UseGuards(RegistrationGuard)
@@ -223,7 +165,7 @@ export class AuthController {
     @Res() reply: FastifyReply,
   ) {
     try {
-      await this.authService.signIn(loginDto.email, loginDto.password);
+      await this.authService.signIn(loginDto.username, loginDto.password);
       await this.authService.deleteUser(payload.userId);
       reply.clearCookie('access_token', { path: '/' });
       return reply.redirect('/', 302);
@@ -238,18 +180,24 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('update-email')
-  @Render('auth/update-email')
-  getUpdateEmail() {}
+  @Get('update-username')
+  @Render('auth/update-username')
+  getUpdateUsername() {}
 
-  @Render('auth/update-email')
-  @Post('validate/update-email')
-  async postValidateUpdateEmail(
+  @UseGuards(AuthGuard)
+  @Render('auth/update-username')
+  @Post('validate/update-username')
+  async postValidateUpdateUsername(
+    @User() payload: Payload,
     @I18n() i18n: I18nContext,
-    @Body() body: UpdateEmailDto,
+    @Body() body: UpdateUsernameDto,
   ) {
-    const instance = plainToInstance(UpdateEmailDto, body);
-    const validationErrors = await i18n.validate(instance);
+    const instance = plainToInstance(UpdateUsernameDto, body);
+    const validationErrors = await this.validateWithUsername(
+      i18n,
+      instance,
+      payload.userId,
+    );
     if (validationErrors.length) {
       return {
         input: body,
@@ -261,17 +209,21 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
-  @Post('update-email')
-  async postUpdateEmail(
+  @Post('update-username')
+  async postUpdateUsername(
     @User() payload: Payload,
     @I18n() i18n: I18nContext,
-    @Body() body: UpdateEmailDto,
+    @Body() body: UpdateUsernameDto,
     @Res() reply: FastifyReply,
   ) {
-    const instance = plainToInstance(UpdateEmailDto, body);
-    const validationErrors = await i18n.validate(instance);
+    const instance = plainToInstance(UpdateUsernameDto, body);
+    const validationErrors = await this.validateWithUsername(
+      i18n,
+      instance,
+      payload.userId,
+    );
     if (validationErrors.length) {
-      return reply.view('auth/update-email', {
+      return reply.view('auth/update-username', {
         layout: 'layout',
         input: body,
         validationErrors,
@@ -279,7 +231,70 @@ export class AuthController {
       });
     }
 
-    await this.authService.changeEmail(payload.userId, body.confirmEmail);
+    await this.authService.changeUsername(payload.userId, instance.username);
     return reply.redirect('/auth/profile', 302);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('change-password')
+  @Render('auth/change-password')
+  getChangePassword() {}
+
+  @UseGuards(AuthGuard)
+  @Render('auth/change-password')
+  @Post('validate/change-password')
+  async postValidateChangePassword(
+    @I18n() i18n: I18nContext,
+    @Body() body: ChangePasswordDto,
+  ) {
+    const instance = plainToInstance(ChangePasswordDto, body);
+    const validationErrors = await i18n.validate(instance);
+    if (validationErrors.length) {
+      return {
+        input: body,
+        validationErrors,
+      };
+    }
+
+    return { input: body };
+  }
+
+  @Throttle({ default: { limit: 5, ttl: seconds(60) } })
+  @UseGuards(AuthGuard)
+  @Post('change-password')
+  async postChangePassword(
+    @User() payload: Payload,
+    @I18n() i18n: I18nContext,
+    @Body() body: ChangePasswordDto,
+    @Res() reply: FastifyReply,
+  ) {
+    const instance = plainToInstance(ChangePasswordDto, body);
+    const validationErrors: object[] = await i18n.validate(instance);
+    if (!validationErrors.length) {
+      try {
+        const jwt = await this.authService.changePassword(
+          payload.userId,
+          instance.currentPassword,
+          instance.newPassword,
+        );
+        reply.setCookie('access_token', jwt, ACCESS_TOKEN_COOKIE);
+        return reply.redirect('/auth/profile', 302);
+      } catch (error) {
+        this.logger.warn(error);
+        validationErrors.push({
+          property: 'currentPassword',
+          constraints: {
+            wrong: i18n.t('lang.validation.WRONG_CURRENT_PASSWORD'),
+          },
+        });
+      }
+    }
+
+    return reply.view('auth/change-password', {
+      layout: 'layout',
+      input: body,
+      validationErrors,
+      ...((reply as any).locals ?? {}),
+    });
   }
 }
